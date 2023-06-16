@@ -7,6 +7,11 @@ Features you can expect to be added:
 - toggle on/off emission lines
 - custom plotting kwargs
 
+Installation:
+Place ```GUIspec.py``` in your work directory for now
+(pre-built version will be provided soon)
+
+
 Usage:
 ~~~python
 import GUIspec
