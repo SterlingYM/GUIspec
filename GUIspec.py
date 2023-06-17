@@ -21,6 +21,7 @@ from astropy.table import Table
 
 # from scipy.ndimage import gaussian_filter
 from matplotlib.figure import Figure
+import matplotlib.transforms as transforms
 from matplotlib.widgets import Slider
 from matplotlib.backends.qt_compat import QtWidgets
 from matplotlib.backends.backend_qtagg import (
@@ -37,19 +38,29 @@ em_lines = dict(
     Lyα_1215 = 1215.24,
     MgII_2799 = 2799.117,
     OII_3727 = 3727,
+    K_3935_abs =  3934.777,
+    H_3979_abs = 3969.588,
     Hδ_4101 = 4101,
     G_4306_abs = 4306,
     Hγ_4340 = 4340,
     Hβ_4861 = 4861,
     OIII_4959 = 4959,
     OIII_5007 = 5007,
-    Mg_2117_abs = 5177,
+    Mg_5177_abs = 5177,
+    Na_5896_abs = 5895.6,
     OI_6300 = 6300,
     Hα_6563 = 6562.8,
     NII_6584 = 6584,
     SII_6716 = 6716,
     SII_6731 = 6731,
-    CaII_8489 = 8489
+    CaII_8489 = 8489,
+    CaII_8500_abs = 8500.36
+)
+sky_lines = dict(
+    sky_5578 = 5578.5,
+    sky_5895 = 5894.6,
+    sky_6302 = 6301.7,
+    sky_7246 = 7246
 )
 
 # ------------
@@ -57,6 +68,9 @@ em_lines = dict(
 # -------------   
 EMLINE_COLOR = 'orange'
 ABSLINE_COLOR = 'violet'
+SKYLINE_COLOR = 'tomato'
+SKYLINE_WIDTH = 20 # angstroms
+SKYLINE_ZORDER = 10
 
 # matplotlib figure/axes parameters
 DPI_INITIAL = 101
@@ -90,7 +104,7 @@ class Pypeit_parser():
         df_spec1d['s2n'] = df_spec1d['s2n'].astype(float)
         return df_spec1d
 
-    def load_spec(objname,df_spec1d,hdul,cut_edges,extraction_idx=0):
+    def load_spec(objname,df_spec1d,hdul,cut_edges,extraction_idx=0,fluxed=False):
         # identify object by name
         spec1d_idx = df_spec1d[df_spec1d['objname'].eq(objname)].index
         if len(spec1d_idx)>1:
@@ -101,7 +115,10 @@ class Pypeit_parser():
         df = Table(hdul[spec1d_idx[0]+1].data).to_pandas()
         wav = df['BOX_WAVE'].values
         wav_idx = np.arange(wav.shape[0])
-        flux = df['BOX_COUNTS'].values
+        if fluxed:
+            flux = df['BOX_FLAM'].values
+        else:
+            flux = df['BOX_COUNTS'].values
         err = df['BOX_COUNTS_SIG'].values
         sky = df['BOX_COUNTS_SKY'].values
         s = (wav_idx>cut_edges) & (wav_idx < wav_idx.max()-cut_edges) & (wav>0) & (wav<9500) #& (flux>0)
@@ -112,6 +129,12 @@ class Pypeit_parser():
 # ------------
 # matplotlib front end
 # -------------   
+
+def draw_skylines(ax):
+    for key,_wav in sky_lines.items():
+        ax.axvspan(_wav-SKYLINE_WIDTH/2,_wav+SKYLINE_WIDTH/2,lw=0,
+                   color=SKYLINE_COLOR,alpha=0.5,zorder=SKYLINE_ZORDER)
+    
 def draw_emlines(z_guess,ax):
     ylim = ax.get_ylim()
     yscale = lambda y_ax_coord: y_ax_coord*(ylim[1]-ylim[0]) + ylim[0]
@@ -120,6 +143,8 @@ def draw_emlines(z_guess,ax):
     emline_objects = []
     emline_init = True
     absline_init = True
+
+    trans = transforms.blended_transform_factory(ax.transData, ax.transAxes)
     for key,_wav in em_lines.items():
         # prep
         em_wav = _wav * (1+z_guess)
@@ -140,9 +165,10 @@ def draw_emlines(z_guess,ax):
 
         # plot
         line = ax.axvline(em_wav,c=color,ls=':',label=label)
-        text = ax.text(em_wav-10+x_offset,yscale(0.03),key,
+
+        text = ax.text(em_wav-10+x_offset,0.03,key,
                     ha='right',va='bottom',
-                    rotation=90,fontsize=6)
+                    rotation=90,fontsize=6,transform=trans)
         line.wav_rest = _wav
         emline_objects.append((line,text))
     return emline_objects
@@ -198,6 +224,8 @@ def plot_spectrum(wav,flux,fig,ax,title='',
               ncols = 4,
               loc='lower center')
     
+    # night sky lines
+    draw_skylines(ax)
     
     # ------------
     # interactive part
