@@ -11,7 +11,6 @@ Installation:
 Place ```GUIspec.py``` in your work directory for now
 (pre-built version will be provided soon)
 
-
 Usage:
 ~~~python
 import GUIspec
@@ -21,3 +20,5 @@ flux = np.random.normal(1e-8,1e-9,wav.shape[0])
 objname = 'EXAMPLE'
 GUIspec.launch_window(wav,flux,title=objname) # press 'q' to exit
 ~~~
+
+![](screenshot.png)
